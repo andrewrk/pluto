@@ -4,7 +4,6 @@ const builtin = @import("builtin");
 const arch = @import("arch.zig").internals;
 
 const expectEqual = @import("std").testing.expectEqual;
-const warn = @import("std").debug.warn;
 
 /// The port address for the VGA register selection.
 const PORT_ADDRESS: u16 = 0x03D4;
@@ -83,7 +82,7 @@ pub const COLOUR_LIGHT_BROWN: u4      = 0x0E;
 pub const COLOUR_WHITE: u4            = 0x0F;
 
 /// The set of shapes that can be displayed.
-pub const CursorShape = enum(u1) {
+pub const CursorShape = enum {
     /// The cursor has the underline shape.
     UNDERLINE,
 
@@ -96,6 +95,23 @@ var cursor_scanline_start: u8 = undefined;
 
 /// The cursor scan line end so to know whether is in block or underline mode.
 var cursor_scanline_end: u8 = undefined;
+
+inline fn sendPort(port: u8) void {
+    arch.outb(PORT_ADDRESS, port);
+}
+
+inline fn sendData(data: u8) void {
+    arch.outb(PORT_DATA, data);
+}
+
+inline fn sendPortData(port: u8, data: u8) void {
+    sendPort(port);
+    sendData(data);
+}
+
+inline fn getData() u8 {
+    return arch.inb(PORT_DATA);
+}
 
 ///
 /// Takes two 4 bit values that represent the foreground and background colour of the text and
@@ -154,11 +170,8 @@ pub fn updateCursor(x: u16, y: u16) void {
     pos_lower = pos & 0x00FF;
 
     // Set the cursor position
-    arch.outb(PORT_ADDRESS, REG_CURSOR_LOCATION_LOW);
-    arch.outb(PORT_DATA, @truncate(u8, pos_lower));
-
-    arch.outb(PORT_ADDRESS, REG_CURSOR_LOCATION_HIGH);
-    arch.outb(PORT_DATA, @truncate(u8, pos_upper));
+    sendPortData(REG_CURSOR_LOCATION_LOW, @truncate(u8, pos_lower));
+    sendPortData(REG_CURSOR_LOCATION_HIGH, @truncate(u8, pos_upper));
 }
 
 ///
@@ -170,11 +183,11 @@ pub fn updateCursor(x: u16, y: u16) void {
 pub fn getCursor() u16 {
     var cursor: u16 = 0;
 
-    arch.outb(PORT_ADDRESS, REG_CURSOR_LOCATION_LOW);
-    cursor |= u16(arch.inb(PORT_DATA));
+    sendPort(REG_CURSOR_LOCATION_LOW);
+    cursor |= u16(getData());
 
-    arch.outb(PORT_ADDRESS, REG_CURSOR_LOCATION_HIGH);
-    cursor |= u16(arch.inb(PORT_DATA)) << 8;
+    sendPort(REG_CURSOR_LOCATION_HIGH);
+    cursor |= u16(getData()) << 8;
 
     return cursor;
 }
@@ -183,19 +196,15 @@ pub fn getCursor() u16 {
 /// Enables the blinking cursor to that is is visible.
 ///
 pub fn enableCursor() void {
-    arch.outb(PORT_ADDRESS, REG_CURSOR_START);
-    arch.outb(PORT_DATA, cursor_scanline_start);
-
-    arch.outb(PORT_ADDRESS, REG_CURSOR_END);
-    arch.outb(PORT_DATA, cursor_scanline_end);
+    sendPortData(REG_CURSOR_START, cursor_scanline_start);
+    sendPortData(REG_CURSOR_END, cursor_scanline_end);
 }
 
 ///
 /// Disables the blinking cursor to that is is visible.
 ///
 pub fn disableCursor() void {
-    arch.outb(PORT_ADDRESS, REG_CURSOR_START);
-    arch.outb(PORT_DATA, CURSOR_DISABLE);
+    sendPortData(REG_CURSOR_START, CURSOR_DISABLE);
 }
 
 ///
@@ -207,21 +216,15 @@ pub fn disableCursor() void {
 pub fn setCursorShape(shape: CursorShape) void {
     switch (shape) {
         CursorShape.UNDERLINE => {
-            arch.outb(PORT_ADDRESS, REG_CURSOR_START);
-            arch.outb(PORT_DATA, CURSOR_SCANLINE_MIDDLE);
-
-            arch.outb(PORT_ADDRESS, REG_CURSOR_END);
-            arch.outb(PORT_DATA, CURSOR_SCANLINE_END);
+            sendPortData(REG_CURSOR_START, CURSOR_SCANLINE_MIDDLE);
+            sendPortData(REG_CURSOR_END, CURSOR_SCANLINE_END);
 
             cursor_scanline_start = CURSOR_SCANLINE_MIDDLE;
             cursor_scanline_end = CURSOR_SCANLINE_END;
         },
         CursorShape.BLOCK => {
-            arch.outb(PORT_ADDRESS, REG_CURSOR_START);
-            arch.outb(PORT_DATA, CURSOR_SCANLINE_START);
-
-            arch.outb(PORT_ADDRESS, REG_CURSOR_END);
-            arch.outb(PORT_DATA, CURSOR_SCANLINE_END);
+            sendPortData(REG_CURSOR_START, CURSOR_SCANLINE_START);
+            sendPortData(REG_CURSOR_END, CURSOR_SCANLINE_END);
 
             cursor_scanline_start = CURSOR_SCANLINE_START;
             cursor_scanline_end = CURSOR_SCANLINE_END;
@@ -234,8 +237,7 @@ pub fn setCursorShape(shape: CursorShape) void {
 ///
 pub fn init() void {
     // Set the maximum scan line to 0x0F
-    arch.outb(PORT_ADDRESS, REG_MAXIMUM_SCAN_LINE);
-    arch.outb(PORT_DATA, CURSOR_SCANLINE_END);
+    sendPortData(REG_MAXIMUM_SCAN_LINE, CURSOR_SCANLINE_END);
 
     // Set by default the underline cursor
     setCursorShape(CursorShape.UNDERLINE);
@@ -275,135 +277,208 @@ test "entry" {
     expectEqual(u16(0xA655), video_entry);
 }
 
-fn testOutOfBounds(x: u16, y: u16) bool {
-    if (x < HEIGHT and y < WIDTH) {
-        return true;
-    }
-    return false;
-}
-
-fn testUpperVal(x: u16, y: u16) u16 {
-    const pos: u16 = x * WIDTH + y;
-    const pos_upper: u16 = (pos >> 8) & 0x00FF;
-    return pos_upper;
-}
-
-fn testLowerVal(x: u16, y: u16) u16 {
-    const pos: u16 = x * WIDTH + y;
-    const pos_lower: u16 = pos & 0x00FF;
-    return pos_lower;
-}
-
 test "updateCursor out of bounds" {
     var x: u16 = 0;
     var y: u16 = 0;
-    var res: bool = testOutOfBounds(x, y);
-    expectEqual(true, res);
+    const max_cursor: u16 = (HEIGHT - 1) * WIDTH + (WIDTH - 1);
 
-    x = HEIGHT - 1;
-    res = testOutOfBounds(x, y);
-    expectEqual(true, res);
+    var expected_upper: u8 = @truncate(u8, (max_cursor >> 8) & 0x00FF);
+    var expected_lower: u8 = @truncate(u8, max_cursor & 0x00FF);
 
-    y = WIDTH - 1;
-    res = testOutOfBounds(x, y);
-    expectEqual(true, res);
+    x = WIDTH;
+    y = 0;
 
-    x = HEIGHT;
-    y = WIDTH;
-    res = testOutOfBounds(x, y);
-    expectEqual(false, res);
+    // Mocking out the arch.outb calls for changing the hardware cursor:
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_LOCATION_LOW,
+        PORT_DATA, expected_lower,
+        PORT_ADDRESS, REG_CURSOR_LOCATION_HIGH,
+        PORT_DATA, expected_upper);
 
-    x = HEIGHT - 1;
-    y = WIDTH;
-    res = testOutOfBounds(x, y);
-    expectEqual(false, res);
+    updateCursor(x, y);
+    arch.freeTest();
 
-    x = HEIGHT;
-    y = WIDTH - 1;
-    res = testOutOfBounds(x, y);
-    expectEqual(false, res);
+    x = 0;
+    y = HEIGHT;
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_LOCATION_LOW,
+        PORT_DATA, expected_lower,
+        PORT_ADDRESS, REG_CURSOR_LOCATION_HIGH,
+        PORT_DATA, expected_upper);
+    updateCursor(x, y);
+    arch.freeTest();
+
+    x = WIDTH;
+    y = HEIGHT;
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_LOCATION_LOW,
+        PORT_DATA, expected_lower,
+        PORT_ADDRESS, REG_CURSOR_LOCATION_HIGH,
+        PORT_DATA, expected_upper);
+    updateCursor(x, y);
+    arch.freeTest();
+
+    x = WIDTH - 1;
+    y = HEIGHT;
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_LOCATION_LOW,
+        PORT_DATA, expected_lower,
+        PORT_ADDRESS, REG_CURSOR_LOCATION_HIGH,
+        PORT_DATA, expected_upper);
+    updateCursor(x, y);
+    arch.freeTest();
+
+    x = WIDTH;
+    y = HEIGHT - 1;
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_LOCATION_LOW,
+        PORT_DATA, expected_lower,
+        PORT_ADDRESS, REG_CURSOR_LOCATION_HIGH,
+        PORT_DATA, expected_upper);
+    updateCursor(x, y);
+    arch.freeTest();
 }
 
-test "updateCursor lower values" {
-    var x: u16 = 0x0000;
-    var y: u16 = 0x0000;
-    var res: u16 = testLowerVal(x, y);
-    var expected: u16 = 0x0000;
-    expectEqual(expected, res);
+test "updateCursor in bounds" {
+    var x: u16 = 0x000A;
+    var y: u16 = 0x000A;
+    const expected: u16 = y * WIDTH + x;
 
-    x = 0x0000;
-    y = 0x000A;
-    res = testLowerVal(x, y);
-    expected = 0x000A;
-    expectEqual(expected, res);
+    var expected_upper: u8 = @truncate(u8, (expected >> 8) & 0x00FF);
+    var expected_lower: u8 = @truncate(u8, expected & 0x00FF);
 
-    x = 0x000A;
-    y = 0x0000;
-    res = testLowerVal(x, y);
-    expected = 0x0020;
-    expectEqual(expected, res);
-
-    x = 0x000A;
-    y = 0x000A;
-    res = testLowerVal(x, y);
-    expected = 0x002A;
-    expectEqual(expected, res);
-}
-
-test "updateCursor upper values" {
-    var x: u16 = 0x0000;
-    var y: u16 = 0x0000;
-    var res: u16 = testUpperVal(x, y);
-    var expected: u16 = 0x0000;
-    expectEqual(expected, res);
-
-    x = 0x0000;
-    y = 0x000A;
-    res = testUpperVal(x, y);
-    expected = 0x0000;
-    expectEqual(expected, res);
-
-    x = 0x000A;
-    y = 0x0000;
-    res = testUpperVal(x, y);
-    expected = 0x0003;
-    expectEqual(expected, res);
-
-    x = 0x000A;
-    y = 0x000A;
-    res = testUpperVal(x, y);
-    expected = 0x0003;
-    expectEqual(expected, res);
+    // Mocking out the arch.outb calls for changing the hardware cursor:
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_LOCATION_LOW,
+        PORT_DATA, expected_lower,
+        PORT_ADDRESS, REG_CURSOR_LOCATION_HIGH,
+        PORT_DATA, expected_upper);
+    updateCursor(x, y);
+    arch.freeTest();
 }
 
 test "getCursor all" {
-    warn(" Waiting for mocking ");
-    var res = getCursor();
+    var expect: u16 = u16(10);
+
+    // Mocking out the arch.outb and arch.inb calls for getting the hardware cursor:
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_LOCATION_LOW);
+
+    arch.addTestParams("inb",
+        PORT_DATA, u8(10));
+
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_LOCATION_HIGH);
+
+    arch.addTestParams("inb",
+        PORT_DATA, u8(0));
+
+    var actual: u16 = getCursor();
+    expectEqual(expect, actual);
+    arch.freeTest();
+
+    expect = u16(0xBEEF);
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_LOCATION_LOW);
+
+    arch.addTestParams("inb",
+        PORT_DATA, u8(0xEF));
+
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_LOCATION_HIGH);
+
+    arch.addTestParams("inb",
+        PORT_DATA, u8(0xBE));
+
+    actual = getCursor();
+    expectEqual(expect, actual);
+    arch.freeTest();
 }
 
 test "enableCursor all" {
-    warn(" Waiting for mocking ");
+    cursor_scanline_start = CURSOR_SCANLINE_MIDDLE;
+    cursor_scanline_end = CURSOR_SCANLINE_END;
+
+    // Mocking out the arch.outb calls for enabling the cursor:
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_START,
+        PORT_DATA, CURSOR_SCANLINE_MIDDLE,
+        PORT_ADDRESS, REG_CURSOR_END,
+        PORT_DATA, CURSOR_SCANLINE_END);
+
     enableCursor();
+
+    expectEqual(CURSOR_SCANLINE_MIDDLE, cursor_scanline_start);
+    expectEqual(CURSOR_SCANLINE_END, cursor_scanline_end);
+
+    arch.freeTest();
 }
 
 test "disableCursor all" {
-    warn(" Waiting for mocking ");
+    // Mocking out the arch.outb calls for disabling the cursor:
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_START,
+        PORT_DATA, CURSOR_DISABLE);
     disableCursor();
+    arch.freeTest();
 }
 
-test "setCursorShape all" {
+test "setCursorShape UNDERLINE" {
+    // Mocking out the arch.outb calls for setting the cursor shape to underline:
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_START,
+        PORT_DATA, CURSOR_SCANLINE_MIDDLE,
+        PORT_ADDRESS, REG_CURSOR_END,
+        PORT_DATA, CURSOR_SCANLINE_END);
+
     setCursorShape(CursorShape.UNDERLINE);
     expectEqual(CURSOR_SCANLINE_MIDDLE, cursor_scanline_start);
     expectEqual(CURSOR_SCANLINE_END, cursor_scanline_end);
 
+    arch.freeTest();
+}
+
+test "setCursorShape BLOCK" {
+    // Mocking out the arch.outb calls for setting the cursor shape to block:
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_CURSOR_START,
+        PORT_DATA, CURSOR_SCANLINE_START,
+        PORT_ADDRESS, REG_CURSOR_END,
+        PORT_DATA, CURSOR_SCANLINE_END);
+
     setCursorShape(CursorShape.BLOCK);
     expectEqual(CURSOR_SCANLINE_START, cursor_scanline_start);
     expectEqual(CURSOR_SCANLINE_END, cursor_scanline_end);
+
+    arch.freeTest();
 }
 
 test "init all" {
-    warn(" Waiting for mocking ");
+    // Mocking out the arch.outb calls for setting the cursor max scan line and the shape to block:
+    arch.initTest();
+    arch.addTestParams("outb",
+        PORT_ADDRESS, REG_MAXIMUM_SCAN_LINE,
+        PORT_DATA, CURSOR_SCANLINE_END,
+        PORT_ADDRESS, REG_CURSOR_START,
+        PORT_DATA, CURSOR_SCANLINE_MIDDLE,
+        PORT_ADDRESS, REG_CURSOR_END,
+        PORT_DATA, CURSOR_SCANLINE_END);
+
     init();
     expectEqual(CURSOR_SCANLINE_MIDDLE, cursor_scanline_start);
     expectEqual(CURSOR_SCANLINE_END, cursor_scanline_end);
+
+    arch.freeTest();
 }
