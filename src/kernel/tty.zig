@@ -6,7 +6,6 @@ const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const expectError = std.testing.expectError;
 const fmt = std.fmt;
-const warn = std.debug.warn;
 
 const vga = if (is_test) @import("../../test/kernel/vga_mock.zig") else @import("vga.zig");
 const log = @import("log.zig");
@@ -31,6 +30,8 @@ const START_OF_DISPLAYABLE_REGION: u16 = vga.WIDTH * ROW_MIN;
 
 /// The total number of VGA elements (or characters) the video buffer can display
 const VIDEO_BUFFER_SIZE: u16 = vga.WIDTH * vga.HEIGHT;
+
+//const VIDEO_BUFFER_ADDRESS: usize = KERNEL_ADDR_OFFSET + (0xB8000);
 
 const PrintError = error {
     OutOfBounds,
@@ -584,6 +585,12 @@ pub fn setColour(new_colour: u8) void {
     blank = vga.entry(0, colour);
 }
 
+extern var KERNEL_ADDR_OFFSET: u32;
+
+fn getVideoBufferAddress() usize {
+    return KERNEL_ADDR_OFFSET + (0xB8000);
+}
+
 ///
 /// Initialise the tty. This will keep the bootloaders output and set the software cursor to where
 /// the bootloader left it. Will copy the current screen to the pages, set the colour and blank
@@ -600,7 +607,7 @@ pub fn setColour(new_colour: u8) void {
 pub fn init() void {
     log.logInfo("Init tty\n");
     // Video buffer in higher half
-    video_buffer = @intToPtr([*]volatile u16, 0xC00B8000)[0..VIDEO_BUFFER_SIZE];
+    video_buffer = @intToPtr([*]volatile u16, getVideoBufferAddress())[0..VIDEO_BUFFER_SIZE];
     setColour(vga.entryColour(vga.COLOUR_LIGHT_GREY, vga.COLOUR_BLACK));
 
     // Enable and get the hardware cursor to set the software cursor
@@ -615,7 +622,7 @@ pub fn init() void {
             row_offset = u16(ROW_MIN - (vga.HEIGHT - 1 - row));
         }
 
-        // Make a copy into the terminal_pages
+        // Make a copy into the pages
         // Assuming that there is only one page
         var i: u16 = 0;
         while (i < row * vga.WIDTH) : (i += 1) {
@@ -648,6 +655,42 @@ pub fn init() void {
     displayPageNumber();
     updateCursor();
     log.logInfo("Done\n");
+}
+
+test "init" {
+    //
+    // Set up
+    //
+
+    setVideoBufferBlankPages();
+    // Mocking out the vga.updateCursor call for updating the hardware cursor
+    vga.initTest();
+    vga.addTestParams("updateCursor", u16(0), u16(0));
+
+    //
+    // Pre testing
+    //
+
+    defaultAllTesting(0, 0, 0);
+
+    //
+    // Call function
+    //
+
+    init();
+
+    //
+    // Post test
+    //
+
+    defaultAllTesting(0, 0, 0);
+    vga.freeTest();
+
+    //
+    // Tear down
+    //
+
+    resetGlobals();
 }
 
 fn resetGlobals() void {

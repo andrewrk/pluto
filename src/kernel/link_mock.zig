@@ -1,0 +1,7 @@
+// Zig version: 0.4.0
+
+export var KERNEL_PHYSADDR_START: u32 = 0x00100000;
+export var KERNEL_PHYSADDR_END: u32 = 0x01000000;
+export var KERNEL_VADDR_START: u32 = 0xC0100000;
+export var KERNEL_VADDR_END: u32 = 0xC1100000;
+export var KERNEL_ADDR_OFFSET: u32 = 0xC0000000;

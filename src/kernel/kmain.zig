@@ -8,7 +8,7 @@ const tty = @import("tty.zig");
 const vga = @import("vga.zig");
 const log = @import("log.zig");
 const serial = @import("serial.zig");
-const mem = @import("mem.zig");
+const mem = if (builtin.is_test) @import("../../test/kernel/mem_mock.zig") else @import("mem.zig");
 
 // Need to import this as we need the panic to be in the root source file, or zig will just use the
 // builtin panic and just loop, which is what we don't want

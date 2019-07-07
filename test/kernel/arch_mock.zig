@@ -1,7 +1,9 @@
 // Zig version: 0.4.0
 
+const std = @import("std");
 const Mock = @import("mock_framework.zig").Mock;
-const warn = @import("std").debug.warn;
+const warn = std.debug.warn;
+const MemProfile = @import("mem_mock.zig").MemProfile;
 
 pub const InterruptContext = struct {
     // Extra segments
@@ -39,7 +41,7 @@ pub var mock: Mock() = undefined;
 ///
 /// Initialise the architecture
 ///
-pub fn init() void {}
+pub fn init(mem_profile: *const MemProfile, allocator: *std.mem.Allocator) void {}
 
 ///
 /// Inline assembly to write to a given port with a byte of data.
