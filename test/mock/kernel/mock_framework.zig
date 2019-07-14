@@ -15,6 +15,7 @@ const DataElementType = enum {
     U16,
     U32,
     FN_OVOID,
+    FN_OUSIZE,
     FN_OU16,
     FN_IU16_OU8,
     FN_IU4_IU4_OU8,
@@ -35,6 +36,7 @@ const DataElement = union (DataElementType) {
     U16: u16,
     U32: u32,
     FN_OVOID: fn()void,
+    FN_OUSIZE: fn()usize,
     FN_OU16: fn()u16,
     FN_IU16_OU8: fn(u16)u8,
     FN_IU4_IU4_OU8: fn(u4, u4)u8,
@@ -102,6 +104,20 @@ pub fn Mock() type {
             }
         }
 
+        fn getFunctionElement(comptime T: type, function: var) DataElement {
+            return switch (T) {
+                fn()void => DataElement { .FN_OVOID = function },
+                fn()usize => DataElement { .FN_OUSIZE = function },
+                fn()u16 => DataElement { .FN_OU16 = function },
+                fn(u16)u8 => DataElement { .FN_IU16_OU8 = function },
+                fn(u4, u4)u8 => DataElement { .FN_IU4_IU4_OU8 = function },
+                fn(u8, u8)u16 => DataElement { .FN_IU8_IU8_OU16 = function },
+                fn(u16, u8)void => DataElement { .FN_IU16_IU8_OVOID = function },
+                fn(u16, u16)void => DataElement { .FN_IU16_IU16_OVOID = function },
+                else => @compileError("Type not supported: " ++ @typeName(T)),
+            };
+        }
+
         pub fn addTestFunction(self: *Self, comptime fun_name: []const u8, function: var) void {
             if (!self.named_actions.contains(fun_name)) {
                 // Add the a new mapping
@@ -111,16 +127,7 @@ pub fn Mock() type {
             const optional_actions_kv = self.named_actions.get(fun_name);
             if (optional_actions_kv) |actions_kv| {
                 var action_list = actions_kv.value;
-                const data_element = switch (@typeOf(function)) {
-                    fn()void => DataElement { .FN_OVOID = function },
-                    fn()u16 => DataElement { .FN_OU16 = function },
-                    fn(u16)u8 => DataElement { .FN_IU16_OU8 = function },
-                    fn(u4, u4)u8 => DataElement { .FN_IU4_IU4_OU8 = function },
-                    fn(u8, u8)u16 => DataElement { .FN_IU8_IU8_OU16 = function },
-                    fn(u16, u8)void => DataElement { .FN_IU16_IU8_OVOID = function },
-                    fn(u16, u16)void => DataElement { .FN_IU16_IU16_OVOID = function },
-                    else => @compileError("Type not supported: " ++ @typeName(@typeOf(function))),
-                };
+                const data_element = getFunctionElement(@typeOf(function), function);
                 const action = Action {
                     .action = ActionType.ConsumeFunctionCall,
                     .data = data_element
@@ -150,16 +157,7 @@ pub fn Mock() type {
             const optional_actions_kv = self.named_actions.get(fun_name);
             if (optional_actions_kv) |actions_kv| {
                 var action_list = actions_kv.value;
-                const data_element = switch (@typeOf(function)) {
-                    fn()void => DataElement { .FN_OVOID = function },
-                    fn()u16 => DataElement { .FN_OU16 = function },
-                    fn(u16)u8 => DataElement { .FN_IU16_OU8 = function },
-                    fn(u4, u4)u8 => DataElement { .FN_IU4_IU4_OU8 = function },
-                    fn(u8, u8)u16 => DataElement { .FN_IU8_IU8_OU16 = function },
-                    fn(u16, u8)void => DataElement { .FN_IU16_IU8_OVOID = function },
-                    fn(u16, u16)void => DataElement { .FN_IU16_IU16_OVOID = function },
-                    else => @compileError("Type not supported: " ++ @typeName(@typeOf(function))),
-                };
+                const data_element = getFunctionElement(@typeOf(function), function);
                 const action = Action {
                     .action = ActionType.RepeatFunctionCall,
                     .data = data_element
@@ -204,7 +202,7 @@ pub fn Mock() type {
             }
             self.named_actions.deinit();
         }
-
+        
         fn getDataType(comptime T: type) DataElementType {
             return switch (T) {
                 u4 => DataElementType.U4,

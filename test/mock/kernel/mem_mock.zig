@@ -1,4 +1,4 @@
-const multiboot = @import("../../src/kernel/multiboot.zig");
+const multiboot = @import("../../../src/kernel/multiboot.zig");
 
 pub const MemProfile = struct {
     vaddr_end: [*]u8,
@@ -10,15 +10,11 @@ pub const MemProfile = struct {
 };
 
 // The virtual/physical start/end of the kernel code
-//extern var KERNEL_VADDR_END: *u32;
-//extern var KERNEL_VADDR_START: *u32;
-//extern var KERNEL_PHYSADDR_END: *u32;
-//extern var KERNEL_PHYSADDR_START: *u32;
 var KERNEL_PHYSADDR_START: u32 = 0x00100000;
 var KERNEL_PHYSADDR_END: u32 = 0x01000000;
 var KERNEL_VADDR_START: u32 = 0xC0100000;
 var KERNEL_VADDR_END: u32 = 0xC1100000;
-export var KERNEL_ADDR_OFFSET: u32 = 0xC0000000;
+var KERNEL_ADDR_OFFSET: u32 = 0xC0000000;
 
 // The size of the fixed allocator used before the heap is set up. Set to 1MiB.
 const FIXED_ALLOC_SIZE = 1024 * 1024;

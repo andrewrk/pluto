@@ -24,6 +24,7 @@ pub fn build(b: *Builder) void {
     const debug = b.option(bool, "debug", "build with debug symbols / make qemu wait for a debug connection") orelse false;
     var build_path = b.option([]const u8, "build-path", "path to build to") orelse "bin";
     var src_path = b.option([]const u8, "source-path", "path to source") orelse "src";
+    var test_path = b.option([]const u8, "test-path", "path to source") orelse "test/unittests";
     var target = b.option([]const u8, "target", "target to build/run for") orelse "x86";
     const rt_test = b.option(bool, "rt-test", "enable/disable runtime testing") orelse false;
     const builtin_target = if (mem.eql(u8, target, "x86")) builtin.Arch.i386 else unreachable;
@@ -65,6 +66,7 @@ pub fn build(b: *Builder) void {
     buildRun(b, builtin_target, build_path, iso_path.toSlice(), debug, rt_test);
     buildDebug(b);
     buildTest(b, src_path, rt_test, target, zig_path);
+    buildTest(b, test_path);
 }
 
 fn buildTest(b: *Builder, src_path: []const u8, rt_test: bool, target: []const u8, zig_path: []const u8) void {
@@ -82,6 +84,22 @@ fn buildTest(b: *Builder, src_path: []const u8, rt_test: bool, target: []const u
             step.dependOn(&tst.step);
         }
     }
+fn buildTest(b: *Builder, test_path: []const u8) void {
+    const step = b.step("test", "Run all tests");
+    const src_path2 = concat(b.allocator, test_path, "/test_all.zig") catch unreachable;
+    
+    const tst = b.addTest(src_path2.toSlice());
+    tst.setMainPkgPath(".");
+    step.dependOn(&tst.step);
+    
+    
+    // for (src_files.toSlice()) |file| {
+    //     var file_src = concat(b.allocator, src_path2.toSlice(), file) catch unreachable;
+    //     file_src.append(".zig") catch unreachable;
+    //     const tst = b.addTest(file_src.toSlice());
+    //     tst.setMainPkgPath(".");
+    //     step.dependOn(&tst.step);
+    // }
 }
 
 fn buildDebug(b: *Builder) void {

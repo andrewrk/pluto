@@ -36,7 +36,7 @@ pub const InterruptContext = struct {
     ss: u32,
 };
 
-pub var mock: Mock() = undefined;
+var mock: Mock() = undefined;
 
 ///
 /// Initialise the architecture
@@ -91,7 +91,7 @@ pub fn registerInterruptHandler(int: u16, ctx: fn (ctx: *InterruptContext) void)
 ///     IN gdt_ptr: *gdt.GdtPtr - The address to the GDT.
 ///
 pub fn lgdt(gdt_ptr: *const gdt.GdtPtr) void {
-    return mock.performAction("lgdt", gdt.GdtPtr, gdt_ptr.*);
+    return mock.performAction("lgdt", void, gdt_ptr.*);
 }
 
 ///
@@ -101,7 +101,7 @@ pub fn ltr() void {}
 
 /// Load the IDT into the CPU.
 pub fn lidt(idt_ptr: *const idt.IdtPtr) void {
-    return mock.performAction("lgdt", idt.IdtPtr, idt_ptr.*);
+    return mock.performAction("lidt", void, idt_ptr.*);
 }
 
 ///
