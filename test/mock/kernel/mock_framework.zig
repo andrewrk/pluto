@@ -56,21 +56,21 @@ const NamedActionMap = AutoHashMap([]const u8, ActionList);
 pub fn Mock() type {
     return struct {
         const Self = @This();
-
+        
         named_actions: NamedActionMap,
-
+        
         pub fn init() Self {
             return Self {
                 .named_actions = AutoHashMap([]const u8, ActionList).init(GlobalAllocator),
             };
         }
-
+        
         pub fn addTestParam(self: *Self, comptime fun_name: []const u8, comptime T: type, param: T) void {
             if (!self.named_actions.contains(fun_name)) {
                 // Add the a new mapping
                 expect(self.named_actions.put(fun_name, LinkedList(Action).init()) catch unreachable == null);
             }
-
+            
             if (self.named_actions.get(fun_name)) |actions_kv| {
                 var action_list = actions_kv.value;
                 const data_element = switch (T) {
@@ -86,7 +86,7 @@ pub fn Mock() type {
                 };
                 var a = action_list.createNode(action, GlobalAllocator) catch unreachable;
                 action_list.append(a);
-                // Need to re-assign the value as it isn't updated when we just append for some reason
+                // Need to re-assign the value as it isn't updated when we just append
                 actions_kv.value = action_list;
             } else {
                 // Shouldn't get here as we would have just added a new mapping
@@ -95,7 +95,7 @@ pub fn Mock() type {
                 expect(false);
             }
         }
-
+        
         pub fn addTestParams(self: *Self, comptime fun_name: []const u8, params: ...) void {
             comptime var i: u32 = u32(0);
             inline while (i < params.len) {
@@ -103,7 +103,7 @@ pub fn Mock() type {
                 i += 1;
             }
         }
-
+        
         fn getFunctionElement(comptime T: type, function: var) DataElement {
             return switch (T) {
                 fn()void => DataElement { .FN_OVOID = function },
@@ -117,13 +117,13 @@ pub fn Mock() type {
                 else => @compileError("Type not supported: " ++ @typeName(T)),
             };
         }
-
+        
         pub fn addTestFunction(self: *Self, comptime fun_name: []const u8, function: var) void {
             if (!self.named_actions.contains(fun_name)) {
                 // Add the a new mapping
                 expect(self.named_actions.put(fun_name, ActionList.init()) catch unreachable == null);
             }
-
+            
             const optional_actions_kv = self.named_actions.get(fun_name);
             if (optional_actions_kv) |actions_kv| {
                 var action_list = actions_kv.value;
@@ -134,7 +134,7 @@ pub fn Mock() type {
                 };
                 var a = action_list.createNode(action, GlobalAllocator) catch unreachable;
                 action_list.append(a);
-                // Need to re-assign the value as it isn't updated when we just append for some reason
+                // Need to re-assign the value as it isn't updated when we just append
                 actions_kv.value = action_list;
             } else {
                 // Shouldn't get here as we would have just added a new mapping
@@ -143,7 +143,7 @@ pub fn Mock() type {
                 expect(false);
             }
         }
-
+        
         pub fn addRepeatFunction(self: *Self, comptime fun_name: []const u8, function: var) void {
             if (!self.named_actions.contains(fun_name)) {
                 // Add the a new mapping
@@ -153,7 +153,7 @@ pub fn Mock() type {
                 warn("One repeat function for " ++ fun_name ++ " only\n");
                 expect(false);
             }
-
+            
             const optional_actions_kv = self.named_actions.get(fun_name);
             if (optional_actions_kv) |actions_kv| {
                 var action_list = actions_kv.value;
@@ -164,7 +164,7 @@ pub fn Mock() type {
                 };
                 var a = action_list.createNode(action, GlobalAllocator) catch unreachable;
                 action_list.append(a);
-                // Need to re-assign the value as it isn't updated when we just append for some reason
+                // Need to re-assign the value as it isn't updated when we just append
                 actions_kv.value = action_list;
             } else {
                 // Shouldn't get here as we would have just added a new mapping
@@ -173,7 +173,7 @@ pub fn Mock() type {
                 expect(false);
             }
         }
-
+        
         pub fn finish(self: *Self) void {
             // Make sure the expected list is empty
             var it = self.named_actions.iterator();
@@ -219,7 +219,7 @@ pub fn Mock() type {
                 else => @compileError("Type not supported: " ++ @typeName(T)),
             };
         }
-
+        
         fn getDataValue(comptime T: type, element: DataElement) T {
             return switch (T) {
                 u4 => element.U4,
@@ -236,26 +236,26 @@ pub fn Mock() type {
                 else => @compileError("Type not supported: " ++ @typeName(T)),
             };
         }
-
+        
         fn expectTest(comptime ET: type, expected_value: ET, element_value: DataElement) void {
             if (ET == void) {
                // Can't test void as it has no value
                warn("Can not test a value for void\n");
                expect(false);
             }
-
+            
             const expect_type = getDataType(ET);
-
+            
             // Test that the types match
             expectEqual(expect_type, DataElementType(element_value));
-
+            
             // Types match, so can use the expected type to get the actual data
             const actual_value = getDataValue(ET, element_value);
-
+            
             // Test the values
             expectEqual(expected_value, actual_value);
         }
-
+        
         fn expectGetValue(comptime fun_name: []const u8, action_list: *ActionList, comptime DataType: type) DataType {
             if (DataType == void) {
                 return;
@@ -265,11 +265,11 @@ pub fn Mock() type {
             if (optional_action_node) |action_node| {
                 const action = action_node.data;
                 const expect_type = getDataType(DataType);
-
+                
                 ret = getDataValue(DataType, action.data);
-
+                
                 expectEqual(DataElementType(action.data), expect_type);
-
+                
                 // Free the node
                 action_list.*.destroyNode(action_node, GlobalAllocator);
             } else {
@@ -278,13 +278,13 @@ pub fn Mock() type {
             }
             return ret;
         }
-
+        
         fn getFunctionType(comptime RetType: type, params: ...) type {
             if (params.len == 0) return fn()RetType;
             if (params.len == 1) return fn(@typeOf(params[0]))RetType;
             if (params.len == 2) return fn(@typeOf(params[0]), @typeOf(params[1]))RetType;
         }
-
+        
         pub fn performAction(self: *Self, comptime fun_name: []const u8, comptime RetType: type, params: ...) RetType {
             var retValue: RetType = undefined;
             if (self.named_actions.get(fun_name)) |kv_actions_list| {
@@ -303,12 +303,12 @@ pub fn Mock() type {
                                 const test_action = test_node.data;
                                 const param = params[i];
                                 const param_type = @typeOf(params[i]);
-
+                                
                                 expectTest(param_type, param, test_action.data);
-
+                                
                                 // Free the node
                                 action_list.destroyNode(test_node, GlobalAllocator);
-
+                                
                                 i += 1;
                             }
                             break :ret expectGetValue(fun_name, &action_list, RetType);
@@ -318,7 +318,7 @@ pub fn Mock() type {
                             // Have already checked that it is not null
                             const test_node = action_list.popFirst().?;
                             const test_element = test_node.data.data;
-
+                            
                             // Work out the type of the function to call from the params and return type
                             // At compile time
                             //const expected_function = getFunctionType(RetType, params);
@@ -331,19 +331,19 @@ pub fn Mock() type {
                                 2 => fn(@typeOf(params[0]), @typeOf(params[1]))RetType,
                                 else => @compileError("Couldn't generate function type for " ++ params.len ++ "parameters\n"),
                             };
-
+                            
                             // Get the corresponding DataElementType
                             const expect_type = getDataType(expected_function);
-
+                            
                             // Test that the types match
                             expectEqual(expect_type, DataElementType(test_element));
-
+                            
                             // Types match, so can use the expected type to get the actual data
                             const actual_function = getDataValue(expected_function, test_element);
-
+                            
                             // Free the node
                             action_list.destroyNode(test_node, GlobalAllocator);
-
+                            
                             // The data element will contain the function to call
                             const r = switch (params.len) {
                                 0 => @noInlineCall(actual_function),
@@ -351,7 +351,7 @@ pub fn Mock() type {
                                 2 => @noInlineCall(actual_function, params[0], params[1]),
                                 else => @compileError(params.len ++ " or more parameters not supported"),
                             };
-
+                            
                             break :ret r;
                         },
                         ActionType.RepeatFunctionCall => ret: {
@@ -364,16 +364,16 @@ pub fn Mock() type {
                                 2 => fn(@typeOf(params[0]), @typeOf(params[1]))RetType,
                                 else => @compileError("Couldn't generate function type for " ++ params.len ++ "parameters\n"),
                             };
-
+                            
                             // Get the corresponding DataElementType
                             const expect_type = getDataType(expected_function);
-
+                            
                             // Test that the types match
                             expectEqual(expect_type, DataElementType(test_element));
-
+                            
                             // Types match, so can use the expected type to get the actual data
                             const actual_function = getDataValue(expected_function, test_element);
-
+                            
                             // The data element will contain the function to call
                             const r = switch (params.len) {
                                 0 => @noInlineCall(actual_function),
@@ -381,7 +381,7 @@ pub fn Mock() type {
                                 2 => @noInlineCall(actual_function, params[0], params[1]),
                                 else => @compileError(params.len ++ " or more parameters not supported"),
                             };
-
+                            
                             break :ret r;
                         },
                     };
@@ -395,7 +395,7 @@ pub fn Mock() type {
                 warn("No function name: " ++ fun_name ++ "\n");
                 expect(false);
             }
-
+            
             return retValue;
         }
     };

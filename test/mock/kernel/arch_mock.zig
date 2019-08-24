@@ -1,9 +1,8 @@
-// Zig version: 0.4.0
-
 const std = @import("std");
 const Mock = @import("mock_framework.zig").Mock;
-const warn = std.debug.warn;
 const MemProfile = @import("mem_mock.zig").MemProfile;
+const expect = std.testing.expect;
+const warn = std.debug.warn;
 
 pub const InterruptContext = struct {
     // Extra segments
@@ -11,23 +10,23 @@ pub const InterruptContext = struct {
     fs: u32,
     es: u32,
     ds: u32,
-
+    
     // Destination, source, base pointer
     edi: u32,
     esi: u32,
     ebp: u32,
     esp: u32,
-
+    
     // General registers
     ebx: u32,
     edx: u32,
     ecx: u32,
     eax: u32,
-
+    
     // Interrupt number and error code
     int_num: u32,
     error_code: u32,
-
+    
     // Instruction pointer, code segment and flags
     eip: u32,
     cs: u32,
@@ -36,111 +35,83 @@ pub const InterruptContext = struct {
     ss: u32,
 };
 
-var mock: Mock() = undefined;
+var mock: ?Mock() = undefined;
 
-///
-/// Initialise the architecture
-///
-pub fn init(mem_profile: *const MemProfile, allocator: *std.mem.Allocator) void {}
+pub fn init(mem_profile: *const MemProfile, allocator: *std.mem.Allocator) void {
+    return mock.?.performAction("init", void, mem_profile, allocator);
+}
 
-///
-/// Inline assembly to write to a given port with a byte of data.
-///
-/// Arguments:
-///     IN port: u16 - The port to write to.
-///     IN data: u8  - The byte of data that will be sent.
-///
 pub fn outb(port: u16, data: u8) void {
-    return mock.performAction("outb", void, port, data);
+    return mock.?.performAction("outb", void, port, data);
 }
 
-///
-/// Inline assembly that reads data from a given port and returns its value.
-///
-/// Arguments:
-///     IN port: u16 - The port to read data from.
-///
-/// Return:
-///     The data that the port returns.
-///
 pub fn inb(port: u16) u8 {
-    return mock.performAction("inb", u8, port);
+    return mock.?.performAction("inb", u8, port);
 }
 
-///
-/// A simple way of waiting for I/O event to happen by doing an I/O event to flush the I/O
-/// event being waited.
-///
-pub fn ioWait() void {}
+pub fn ioWait() void {
+    return mock.?.performAction("ioWait", void);
+}
 
-///
-/// Register an interrupt handler. The interrupt number should be the arch-specific number.
-///
-/// Arguments:
-///     IN int: u16 - The arch-specific interrupt number to register for.
-///     IN handler: fn (ctx: *InterruptContext) void - The handler to assign to the interrupt.
-///
-pub fn registerInterruptHandler(int: u16, ctx: fn (ctx: *InterruptContext) void) void {}
+pub fn registerInterruptHandler(int: u16, ctx: fn (ctx: *InterruptContext) void) void {
+    return mock.?.performAction("registerInterruptHandler", void, int, ctx);
+}
 
-///
-/// Load the GDT and refreshing the code segment with the code segment offset of the kernel as we
-/// are still in kernel land. Also loads the kernel data segment into all the other segment
-/// registers.
-///
-/// Arguments:
-///     IN gdt_ptr: *gdt.GdtPtr - The address to the GDT.
-///
 pub fn lgdt(gdt_ptr: *const gdt.GdtPtr) void {
-    return mock.performAction("lgdt", void, gdt_ptr.*);
+    return mock.?.performAction("lgdt", void, gdt_ptr.*);
 }
 
-///
-/// Load the TSS into the CPU.
-///
-pub fn ltr() void {}
+pub fn ltr() void {
+    return mock.?.performAction("ltr", void);
+}
 
-/// Load the IDT into the CPU.
 pub fn lidt(idt_ptr: *const idt.IdtPtr) void {
-    return mock.performAction("lidt", void, idt_ptr.*);
+    return mock.?.performAction("lidt", void, idt_ptr.*);
 }
 
-///
-/// Enable interrupts
-///
-pub fn enableInterrupts() void {}
+pub fn enableInterrupts() void {
+    return mock.?.performAction("enableInterrupts", void);
+}
 
-///
-/// Disable interrupts
-///
-pub fn disableInterrupts() void {}
+pub fn disableInterrupts() void {
+    return mock.?.performAction("disableInterrupts", void);
+}
 
-///
-/// Halt the CPU, but interrupts will still be called
-///
-pub fn halt() void {}
+pub fn halt() void {
+    return mock.?.performAction("halt", void);
+}
 
-///
-/// Wait the kernel but still can handle interrupts.
-///
 pub fn spinWait() noreturn {
     while (true) {}
 }
 
-///
-/// Halt the kernel.
-///
 pub fn haltNoInterrupts() noreturn {
     while (true) {}
 }
 
 pub fn addTestParams(comptime fun_name: []const u8, params: ...) void {
-    mock.addTestParams(fun_name, params);
+    mock.?.addTestParams(fun_name, params);
 }
 
 pub fn initTest() void {
-    mock = Mock().init();
+    // Make sure there isn't a mock object
+    if (mock) |_| {
+        warn("MOCK object for arch.zig already exists, please free previous test\n");
+        expect(false);
+    } else {
+        mock = Mock().init();
+    }
 }
 
 pub fn freeTest() void {
-    mock.finish();
+    // Make sure we have a mock object to free
+    if (mock) |*m| {
+        m.*.finish();
+    } else {
+        warn("MOCK object for arch.zig doesn't exists, please initiate this test\n");
+        expect(false);
+    }
+    
+    // This will stop double frees
+    mock = null;
 }

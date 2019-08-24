@@ -37,19 +37,18 @@ test "entry" {
     expectEqual(u16(0xA655), video_entry);
 }
 
-test "updateCursor out of bounds" {
-    var x: u16 = 0;
-    var y: u16 = 0;
+test "updateCursor width out of bounds" {
+    const x: u16 = vga.WIDTH;
+    const y: u16 = 0;
+    
     const max_cursor: u16 = (vga.HEIGHT - 1) * vga.WIDTH + (vga.WIDTH - 1);
+    const expected_upper: u8 = @truncate(u8, (max_cursor >> 8) & 0x00FF);
+    const expected_lower: u8 = @truncate(u8, max_cursor & 0x00FF);
     
-    var expected_upper: u8 = @truncate(u8, (max_cursor >> 8) & 0x00FF);
-    var expected_lower: u8 = @truncate(u8, max_cursor & 0x00FF);
-    
-    x = vga.WIDTH;
-    y = 0;
+    arch.initTest();
+    defer arch.freeTest();
     
     // Mocking out the arch.outb calls for changing the hardware cursor:
-    arch.initTest();
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_LOW,
         vga.PORT_DATA, expected_lower,
@@ -57,51 +56,90 @@ test "updateCursor out of bounds" {
         vga.PORT_DATA, expected_upper);
     
     vga.updateCursor(x, y);
-    arch.freeTest();
+}
+
+test "updateCursor height out of bounds" {
+    const x: u16 = 0;
+    const y: u16 = vga.HEIGHT;
     
-    x = 0;
-    y = vga.HEIGHT;
+    const max_cursor: u16 = (vga.HEIGHT - 1) * vga.WIDTH + (vga.WIDTH - 1);
+    const expected_upper: u8 = @truncate(u8, (max_cursor >> 8) & 0x00FF);
+    const expected_lower: u8 = @truncate(u8, max_cursor & 0x00FF);
+    
     arch.initTest();
+    defer arch.freeTest();
+    
+    // Mocking out the arch.outb calls for changing the hardware cursor:
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_LOW,
         vga.PORT_DATA, expected_lower,
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_HIGH,
         vga.PORT_DATA, expected_upper);
-    vga.updateCursor(x, y);
-    arch.freeTest();
     
-    x = vga.WIDTH;
-    y = vga.HEIGHT;
+    vga.updateCursor(x, y);
+}
+
+test "updateCursor width and height out of bounds" {
+    const x: u16 = vga.WIDTH;
+    const y: u16 = vga.HEIGHT;
+    
+    const max_cursor: u16 = (vga.HEIGHT - 1) * vga.WIDTH + (vga.WIDTH - 1);
+    const expected_upper: u8 = @truncate(u8, (max_cursor >> 8) & 0x00FF);
+    const expected_lower: u8 = @truncate(u8, max_cursor & 0x00FF);
+    
     arch.initTest();
+    defer arch.freeTest();
+    
+    // Mocking out the arch.outb calls for changing the hardware cursor:
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_LOW,
         vga.PORT_DATA, expected_lower,
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_HIGH,
         vga.PORT_DATA, expected_upper);
-    vga.updateCursor(x, y);
-    arch.freeTest();
     
-    x = vga.WIDTH - 1;
-    y = vga.HEIGHT;
+    vga.updateCursor(x, y);
+}
+
+test "updateCursor width-1 and height out of bounds" {
+    const x: u16 = vga.WIDTH - 1;
+    const y: u16 = vga.HEIGHT;
+    
+    const max_cursor: u16 = (vga.HEIGHT - 1) * vga.WIDTH + (vga.WIDTH - 1);
+    const expected_upper: u8 = @truncate(u8, (max_cursor >> 8) & 0x00FF);
+    const expected_lower: u8 = @truncate(u8, max_cursor & 0x00FF);
+    
     arch.initTest();
+    defer arch.freeTest();
+    
+    // Mocking out the arch.outb calls for changing the hardware cursor:
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_LOW,
         vga.PORT_DATA, expected_lower,
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_HIGH,
         vga.PORT_DATA, expected_upper);
-    vga.updateCursor(x, y);
-    arch.freeTest();
     
-    x = vga.WIDTH;
-    y = vga.HEIGHT - 1;
+    vga.updateCursor(x, y);
+}
+
+test "updateCursor width and height-1 out of bounds" {
+    const x: u16 = vga.WIDTH;
+    const y: u16 = vga.HEIGHT - 1;
+    
+    const max_cursor: u16 = (vga.HEIGHT - 1) * vga.WIDTH + (vga.WIDTH - 1);
+    const expected_upper: u8 = @truncate(u8, (max_cursor >> 8) & 0x00FF);
+    const expected_lower: u8 = @truncate(u8, max_cursor & 0x00FF);
+    
     arch.initTest();
+    defer arch.freeTest();
+    
+    // Mocking out the arch.outb calls for changing the hardware cursor:
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_LOW,
         vga.PORT_DATA, expected_lower,
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_HIGH,
         vga.PORT_DATA, expected_upper);
+    
     vga.updateCursor(x, y);
-    arch.freeTest();
 }
 
 test "updateCursor in bounds" {
@@ -112,22 +150,25 @@ test "updateCursor in bounds" {
     var expected_upper: u8 = @truncate(u8, (expected >> 8) & 0x00FF);
     var expected_lower: u8 = @truncate(u8, expected & 0x00FF);
     
-    // Mocking out the arch.outb calls for changing the hardware cursor:
     arch.initTest();
+    defer arch.freeTest();
+    
+    // Mocking out the arch.outb calls for changing the hardware cursor:
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_LOW,
         vga.PORT_DATA, expected_lower,
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_HIGH,
         vga.PORT_DATA, expected_upper);
     vga.updateCursor(x, y);
-    arch.freeTest();
 }
 
-test "getCursor all" {
-    var expect: u16 = u16(10);
+test "getCursor 1: 10" {
+    const expect: u16 = u16(10);
     
     // Mocking out the arch.outb and arch.inb calls for getting the hardware cursor:
     arch.initTest();
+    defer arch.freeTest();
+    
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_LOW);
     
@@ -140,12 +181,17 @@ test "getCursor all" {
     arch.addTestParams("inb",
         vga.PORT_DATA, u8(0));
     
-    var actual: u16 = vga.getCursor();
+    const actual: u16 = vga.getCursor();
     expectEqual(expect, actual);
-    arch.freeTest();
+}
+
+test "getCursor 2: 0xBEEF" {
+    const expect: u16 = u16(0xBEEF);
     
-    expect = u16(0xBEEF);
+    // Mocking out the arch.outb and arch.inb calls for getting the hardware cursor:
     arch.initTest();
+    defer arch.freeTest();
+    
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_LOCATION_LOW);
     
@@ -158,14 +204,15 @@ test "getCursor all" {
     arch.addTestParams("inb",
         vga.PORT_DATA, u8(0xBE));
     
-    actual = vga.getCursor();
+    const actual: u16 = vga.getCursor();
     expectEqual(expect, actual);
-    arch.freeTest();
 }
 
 test "enableCursor all" {
-    // Need to init the cursor start and end positions, so call the vga.init() to set this up
     arch.initTest();
+    defer arch.freeTest();
+    
+    // Need to init the cursor start and end positions, so call the vga.init() to set this up
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_MAXIMUM_SCAN_LINE,
         vga.PORT_DATA, vga.CURSOR_SCANLINE_END,
@@ -182,23 +229,26 @@ test "enableCursor all" {
     
     vga.init();
     vga.enableCursor();
-    
-    arch.freeTest();
 }
 
 test "disableCursor all" {
-    // Mocking out the arch.outb calls for disabling the cursor:
     arch.initTest();
+    defer arch.freeTest();
+    
+    // Mocking out the arch.outb calls for disabling the cursor:
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_START,
         vga.PORT_DATA, vga.CURSOR_DISABLE);
     vga.disableCursor();
-    arch.freeTest();
 }
 
 test "setCursorShape UNDERLINE" {
-    // Mocking out the arch.outb calls for setting the cursor shape to underline:
     arch.initTest();
+    defer arch.freeTest();
+    
+    // Mocking out the arch.outb calls for setting the cursor shape to underline:
+    // This will also check that the scan line variables were set properly as these are using in
+    // the arch.outb call
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_START,
         vga.PORT_DATA, vga.CURSOR_SCANLINE_MIDDLE,
@@ -206,15 +256,15 @@ test "setCursorShape UNDERLINE" {
         vga.PORT_DATA, vga.CURSOR_SCANLINE_END);
     
     vga.setCursorShape(vga.CursorShape.UNDERLINE);
-    expectEqual(vga.CURSOR_SCANLINE_MIDDLE, vga.getCursorStart());
-    expectEqual(vga.CURSOR_SCANLINE_END, vga.getCursorEnd());
-    
-    arch.freeTest();
 }
 
 test "setCursorShape BLOCK" {
-    // Mocking out the arch.outb calls for setting the cursor shape to block:
     arch.initTest();
+    defer arch.freeTest();
+    
+    // Mocking out the arch.outb calls for setting the cursor shape to block:
+    // This will also check that the scan line variables were set properly as these are using in
+    // the arch.outb call
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_CURSOR_START,
         vga.PORT_DATA, vga.CURSOR_SCANLINE_START,
@@ -222,15 +272,15 @@ test "setCursorShape BLOCK" {
         vga.PORT_DATA, vga.CURSOR_SCANLINE_END);
     
     vga.setCursorShape(vga.CursorShape.BLOCK);
-    expectEqual(vga.CURSOR_SCANLINE_START, vga.getCursorStart());
-    expectEqual(vga.CURSOR_SCANLINE_END, vga.getCursorEnd());
-    
-    arch.freeTest();
 }
 
 test "init all" {
-    // Mocking out the arch.outb calls for setting the cursor max scan line and the shape to block:
     arch.initTest();
+    defer arch.freeTest();
+    
+    // Mocking out the arch.outb calls for setting the cursor max scan line and the shape to block:
+    // This will also check that the scan line variables were set properly as these are using in
+    // the arch.outb call for setting the cursor shape.
     arch.addTestParams("outb",
         vga.PORT_ADDRESS, vga.REG_MAXIMUM_SCAN_LINE,
         vga.PORT_DATA, vga.CURSOR_SCANLINE_END,
@@ -240,8 +290,4 @@ test "init all" {
         vga.PORT_DATA, vga.CURSOR_SCANLINE_END);
     
     vga.init();
-    expectEqual(vga.CURSOR_SCANLINE_MIDDLE, vga.getCursorStart());
-    expectEqual(vga.CURSOR_SCANLINE_END, vga.getCursorEnd());
-    
-    arch.freeTest();
 }

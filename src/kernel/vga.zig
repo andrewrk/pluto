@@ -1,7 +1,5 @@
 const arch = @import("arch.zig").internals;
 
-const expectEqual = @import("std").testing.expectEqual;
-
 /// The port address for the VGA register selection.
 pub const PORT_ADDRESS: u16 = 0x03D4;
 
@@ -41,7 +39,6 @@ pub const REG_START_VERTICAL_BLINKING: u8         = 0x15;
 pub const REG_END_VERTICAL_BLINKING: u8           = 0x16;
 pub const REG_CRT_MODE_CONTROL: u8                = 0x17;
 pub const REG_LINE_COMPARE: u8                    = 0x18;
-
 
 /// The start of the cursor scan line, the very beginning.
 pub const CURSOR_SCANLINE_START: u8   = 0x0;
@@ -93,14 +90,6 @@ var cursor_scanline_start: u8 = undefined;
 
 /// The cursor scan line end so to know whether is in block or underline mode.
 var cursor_scanline_end: u8 = undefined;
-
-// These are used for testing
-pub fn getCursorStart() u8 {
-    return cursor_scanline_start;
-}
-pub fn getCursorEnd() u8 {
-    return cursor_scanline_end;
-}
 
 /// A inline function for setting the VGA register port to read from or write to.
 inline fn sendPort(port: u8) void {
@@ -163,8 +152,6 @@ pub fn entry(char: u8, colour: u8) u16 {
 ///
 pub fn updateCursor(x: u16, y: u16) void {
     var pos: u16 = undefined;
-    var pos_upper: u16 = undefined;
-    var pos_lower: u16 = undefined;
     
     // Make sure new cursor position is within the screen
     if (x < WIDTH and y < HEIGHT) {
@@ -174,8 +161,8 @@ pub fn updateCursor(x: u16, y: u16) void {
         pos = (HEIGHT - 1) * WIDTH + (WIDTH - 1);
     }
     
-    pos_upper = (pos >> 8) & 0x00FF;
-    pos_lower = pos & 0x00FF;
+    const pos_upper = (pos >> 8) & 0x00FF;
+    const pos_lower = pos & 0x00FF;
     
     // Set the cursor position
     sendPortData(REG_CURSOR_LOCATION_LOW, @truncate(u8, pos_lower));
@@ -224,20 +211,17 @@ pub fn disableCursor() void {
 pub fn setCursorShape(shape: CursorShape) void {
     switch (shape) {
         CursorShape.UNDERLINE => {
-            sendPortData(REG_CURSOR_START, CURSOR_SCANLINE_MIDDLE);
-            sendPortData(REG_CURSOR_END, CURSOR_SCANLINE_END);
-            
             cursor_scanline_start = CURSOR_SCANLINE_MIDDLE;
             cursor_scanline_end = CURSOR_SCANLINE_END;
         },
         CursorShape.BLOCK => {
-            sendPortData(REG_CURSOR_START, CURSOR_SCANLINE_START);
-            sendPortData(REG_CURSOR_END, CURSOR_SCANLINE_END);
-            
             cursor_scanline_start = CURSOR_SCANLINE_START;
             cursor_scanline_end = CURSOR_SCANLINE_END;
         },
     }
+    
+    sendPortData(REG_CURSOR_START, cursor_scanline_start);
+    sendPortData(REG_CURSOR_END, cursor_scanline_end);
 }
 
 ///

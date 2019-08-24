@@ -17,23 +17,23 @@ pub const InterruptContext = struct {
     fs: u32,
     es: u32,
     ds: u32,
-
+    
     // Destination, source, base pointer
     edi: u32,
     esi: u32,
     ebp: u32,
     esp: u32,
-
+    
     // General registers
     ebx: u32,
     edx: u32,
     ecx: u32,
     eax: u32,
-
+    
     // Interrupt number and error code
     int_num: u32,
     error_code: u32,
-
+    
     // Instruction pointer, code segment and flags
     eip: u32,
     cs: u32,
@@ -47,17 +47,17 @@ pub const InterruptContext = struct {
 ///
 pub fn init(mem_profile: *const MemProfile, allocator: *std.mem.Allocator) void {
     disableInterrupts();
-
+    
     gdt.init();
     idt.init();
-
+    
     isr.init();
     irq.init();
-
+    
     pit.init();
-
+    
     paging.init(mem_profile, allocator);
-
+    
     // Enable interrupts
     enableInterrupts();
 }

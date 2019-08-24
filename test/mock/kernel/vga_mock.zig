@@ -1,5 +1,3 @@
-// Zig version: 0.4.0
-
 const arch = @import("arch.zig").internals;
 const Mock = @import("mock_framework.zig").Mock;
 
@@ -58,7 +56,9 @@ pub fn setCursorShape(shape: CursorShape) void {
     return mock.performAction("setCursorShape", void, shape);
 }
 
-pub fn init() void {}
+pub fn init() void {
+    return mock.performAction("init", void);
+}
 
 pub fn addRepeatFunction(comptime fun_name: []const u8, function: var) void {
     mock.addRepeatFunction(fun_name, function);
