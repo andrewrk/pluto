@@ -65,41 +65,21 @@ pub fn build(b: *Builder) void {
 
     buildRun(b, builtin_target, build_path, iso_path.toSlice(), debug, rt_test);
     buildDebug(b);
-    buildTest(b, src_path, rt_test, target, zig_path);
-    buildTest(b, test_path);
+    buildTest(b, test_path, rt_test, target, zig_path);
 }
 
-fn buildTest(b: *Builder, src_path: []const u8, rt_test: bool, target: []const u8, zig_path: []const u8) void {
+fn buildTest(b: *Builder, test_path: []const u8, rt_test: bool, target: []const u8, zig_path: []const u8) void {
     const step = b.step("test", "Run tests");
     if (rt_test) {
         const script = b.addSystemCommand([][]const u8{ "python3", "test/rt-test.py", target, zig_path});
         step.dependOn(&script.step);
     } else {
-        const src_path2 = concat(b.allocator, src_path, "/") catch unreachable;
-        for (src_files.toSlice()) |file| {
-            var file_src = concat(b.allocator, src_path2.toSlice(), file) catch unreachable;
-            file_src.append(".zig") catch unreachable;
-            const tst = b.addTest(file_src.toSlice());
-            tst.setMainPkgPath(".");
-            step.dependOn(&tst.step);
-        }
+        const src_path2 = concat(b.allocator, test_path, "/test_all.zig") catch unreachable;
+        
+        const tst = b.addTest(src_path2.toSlice());
+        tst.setMainPkgPath(".");
+        step.dependOn(&tst.step);
     }
-fn buildTest(b: *Builder, test_path: []const u8) void {
-    const step = b.step("test", "Run all tests");
-    const src_path2 = concat(b.allocator, test_path, "/test_all.zig") catch unreachable;
-    
-    const tst = b.addTest(src_path2.toSlice());
-    tst.setMainPkgPath(".");
-    step.dependOn(&tst.step);
-    
-    
-    // for (src_files.toSlice()) |file| {
-    //     var file_src = concat(b.allocator, src_path2.toSlice(), file) catch unreachable;
-    //     file_src.append(".zig") catch unreachable;
-    //     const tst = b.addTest(file_src.toSlice());
-    //     tst.setMainPkgPath(".");
-    //     step.dependOn(&tst.step);
-    // }
 }
 
 fn buildDebug(b: *Builder) void {
