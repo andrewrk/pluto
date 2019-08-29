@@ -80,7 +80,7 @@ pub const COLOUR_WHITE: u4            = 0x0F;
 pub const CursorShape = enum {
     /// The cursor has the underline shape.
     UNDERLINE,
-    
+
     /// The cursor has the block shape.
     BLOCK,
 };
@@ -152,7 +152,7 @@ pub fn entry(char: u8, colour: u8) u16 {
 ///
 pub fn updateCursor(x: u16, y: u16) void {
     var pos: u16 = undefined;
-    
+
     // Make sure new cursor position is within the screen
     if (x < WIDTH and y < HEIGHT) {
         pos = y * WIDTH + x;
@@ -160,10 +160,10 @@ pub fn updateCursor(x: u16, y: u16) void {
         // If not within the screen, then just put the cursor at the very end
         pos = (HEIGHT - 1) * WIDTH + (WIDTH - 1);
     }
-    
+
     const pos_upper = (pos >> 8) & 0x00FF;
     const pos_lower = pos & 0x00FF;
-    
+
     // Set the cursor position
     sendPortData(REG_CURSOR_LOCATION_LOW, @truncate(u8, pos_lower));
     sendPortData(REG_CURSOR_LOCATION_HIGH, @truncate(u8, pos_upper));
@@ -177,13 +177,13 @@ pub fn updateCursor(x: u16, y: u16) void {
 ///
 pub fn getCursor() u16 {
     var cursor: u16 = 0;
-    
+
     sendPort(REG_CURSOR_LOCATION_LOW);
     cursor |= u16(getData());
-    
+
     sendPort(REG_CURSOR_LOCATION_HIGH);
     cursor |= u16(getData()) << 8;
-    
+
     return cursor;
 }
 
@@ -219,7 +219,7 @@ pub fn setCursorShape(shape: CursorShape) void {
             cursor_scanline_end = CURSOR_SCANLINE_END;
         },
     }
-    
+
     sendPortData(REG_CURSOR_START, cursor_scanline_start);
     sendPortData(REG_CURSOR_END, cursor_scanline_end);
 }
@@ -230,7 +230,7 @@ pub fn setCursorShape(shape: CursorShape) void {
 pub fn init() void {
     // Set the maximum scan line to 0x0F
     sendPortData(REG_MAXIMUM_SCAN_LINE, CURSOR_SCANLINE_END);
-    
+
     // Set by default the underline cursor
     setCursorShape(CursorShape.UNDERLINE);
 }

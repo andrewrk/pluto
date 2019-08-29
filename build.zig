@@ -75,7 +75,7 @@ fn buildTest(b: *Builder, test_path: []const u8, rt_test: bool, target: []const 
         step.dependOn(&script.step);
     } else {
         const src_path2 = concat(b.allocator, test_path, "/test_all.zig") catch unreachable;
-        
+
         const tst = b.addTest(src_path2.toSlice());
         tst.setMainPkgPath(".");
         step.dependOn(&tst.step);
