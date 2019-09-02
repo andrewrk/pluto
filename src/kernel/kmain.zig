@@ -25,7 +25,7 @@ pub fn panic(msg: []const u8, error_return_trace: ?*builtin.StackTrace) noreturn
 pub export fn kmain(mb_info: *multiboot.multiboot_info_t, mb_magic: u32) void {
     if (mb_magic == multiboot.MULTIBOOT_BOOTLOADER_MAGIC) {
         // Booted with compatible bootloader
-        const mem_profile = mem.init(mb_info);
+        const mem_profile = mem.initMemProfile(mb_info);
         var buffer = mem_profile.vaddr_end[0..mem_profile.fixed_alloc_size];
         var fixed_allocator = std.heap.FixedBufferAllocator.init(buffer);
 
